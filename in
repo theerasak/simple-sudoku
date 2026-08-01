@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Sudoku Game</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --cell-size: 45px;
+            --primary-color: #4a90e2;
+            --border-dark: #34495e;
+            --text-color: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        h1 { color: var(--text-color); margin-bottom: 10px; }
+
+        #game-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        #sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(9, var(--cell-size));
+            grid-template-rows: repeat(9, var(--cell-size));
+            border: 3px solid var(--border-dark);
+            margin-bottom: 20px;
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            border: 0.5px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* สร้างเส้นแบ่งเขต 3x3 */
+        .cell:nth-child(3n) { border-right: 2px solid var(--border-dark); }
+        .cell:nth-child(9n) { border-right: none; }
+        .cell:nth-child(n+19):nth-child(-n+27),
+        .cell:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: 3px solid var(--border-dark);
+        }
+
+        .cell.selected { background-color: #e3f2fd; }
+        .cell.fixed { color: #7f8c8d; background-color: #f8f9fa; cursor: default; }
+        .cell.error { color: #e74c3c; background-color: #fadbd8; }
+        .cell.user-input { color: var(--primary-color); }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+            background: var(--primary-color);
+            color: white;
+        }
+
+        button:hover { opacity: 0.8; }
+        button.secondary { background: #95a5a6; }
+
+        .number-pad {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+
+        .num-btn {
+            width: 45px;
+            height: 45px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--text-color);
+        }
+
+        .num-btn:hover { background: var(--primary-color); color: white; }
+
+        @media (max-width: 500px) {
+            :root { --cell-size: 35px; }
+            .num-btn { width: 35px; height: 35px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Sudoku Game</h1>
+
+    <div id="game-container">
+        <div id="sudoku-grid"></div>
+
+        <div class="controls">
+            <button onclick="startNewGame()">New Game</button>
+            <button class="secondary" onclick="checkSolution()">Check Result</button>
+        </div>
+
+        <div class="number-pad">
+            <div class="num-btn" onclick="inputNumber(1)">1</div>
+            <div class="num-btn" onclick="inputNumber(2)">2</div>
+            <div class="num-btn" onclick="inputNumber(3)">3</div>
+            <div class="num-btn" onclick="inputNumber(4)">4</div>
+            <div class="num-btn" onclick="inputNumber(5)">5</div>
+            <div class="num-btn" onclick="inputNumber(6)">6</div>
+            <div class="num-btn" onclick="inputNumber(7)">7</div>
+            <div class="num-btn" onclick="inputNumber(8)">8</div>
+            <div class="num-btn" onclick="inputNumber(9)">9</div>
+            <div class="num-btn" onclick="inputNumber(0)" style="color:red">CLR</div>
+        </div>
+    </div>
+
+    <script>
+        const gridElement = document.getElementById('sudoku-grid');
+        let selectedCell = null;
+        let solution = [];
+        let currentBoard = [];
+
+        // เริ่มต้นเกม
+        function startNewGame() {
+            generateSudoku();
+            renderBoard();
+        }
+
+        // อัลกอริทึมสร้าง Sudoku แบบง่าย
+        function generateSudoku() {
+            // สร้างตารางว่าง
+            solution = Array(9).fill().map(() => Array(9).fill(0));
+            fillSudoku(solution);
+            
+            // คัดลอกไปเป็นกระดานที่จะเล่น
+            currentBoard = solution.map(row => [...row]);
+            
+            // สุ่มลบตัวเลขออก (Difficulty: Medium)
+            let attempts = 40; 
+            while (attempts > 0) {
+                let r = Math.floor(Math.random() * 9);
+                let c = Math.floor(Math.random() * 9);
+                if (currentBoard[r][c] !== 0) {
+                    currentBoard[r][c] = 0;
+                    attempts--;
+                }
+            }
+        }
+
+        function fillSudoku(board) {
+            for (let i = 0; i < 81; i++) {
+                let row = Math.floor(i / 9);
+                let col = i % 9;
+                if (board[row][col] === 0) {
+                    let nums = [1,2,3,4,5,6,7,8,9].sort(() => Math.random() - 0.5);
+                    for (let num of nums) {
+                        if (isValid(board, row, col, num)) {
+                            board[row][col] = num;
+                            if (fillSudoku(board)) return true;
+                            board[row][col] = 0;
+                        }
+                    }
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function isValid(board, row, col, num) {
+            for (let i = 0; i < 9; i++) {
+                if (board[row][i] === num || board[i][col] === num) return false;
+            }
+            let startRow = Math.floor(row / 3) * 3;
+            let startCol = Math.floor(col / 3) * 3;
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    if (board[startRow + i][startCol + j] === num) return false;
+                }
+            }
+            return true;
+        }
+
+        function renderBoard() {
+            gridElement.innerHTML = '';
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+
+                    if (currentBoard[r][c] !== 0) {
+                        cell.innerText = currentBoard[r][c];
+                        cell.classList.add('fixed');
+                    } else {
+                        cell.addEventListener('click', () => selectCell(cell));
+                    }
+                    
+                    gridElement.appendChild(cell);
+                }
+            }
+        }
+
+        function selectCell(cell) {
+            if (selectedCell) selectedCell.classList.remove('selected');
+            selectedCell = cell;
+            selectedCell.classList.add('selected');
+        }
+
+        function inputNumber(num) {
+            if (!selectedCell || selectedCell.classList.contains('fixed')) return;
+
+            const r = selectedCell.dataset.row;
+            const c = selectedCell.dataset.col;
+
+            if (num === 0) {
+                selectedCell.innerText = '';
+                currentBoard[r][c] = 0;
+                selectedCell.classList.remove('user-input', 'error');
+            } else {
+                selectedCell.innerText = num;
+                selectedCell.classList.add('user-input');
+                currentBoard[r][c] = num;
+            }
+        }
+
+        function checkSolution() {
+            const cells = document.querySelectorAll('.cell');
+            let isCorrect = true;
+
+            cells.forEach(cell => {
+                const r = cell.dataset.row;
+                const c = cell.dataset.col;
+                const val = parseInt(cell.innerText);
+
+                if (val !== solution[r][c]) {
+                    cell.classList.add('error');
+                    isCorrect = false;
+                } else {
+                    cell.classList.remove('error');
+                }
+            });
+
+            if (isCorrect) {
+                alert('🎉 ยินดีด้วย! คุณชนะแล้ว!');
+            } else {
+                alert('❌ ยังมีจุดที่ผิดอยู่ ลองดูใหม่นะ!');
+            }
+        }
+
+        // รองรับการกดปุ่มบน Keyboard
+        document.addEventListener('keydown', (e) => {
+            if (e.key >= 1 && e.key <= 9) inputNumber(parseInt(e.key));
+            if (e.key === 'Backspace' || e.key === 'Delete') inputNumber(0);
+        });
+
+        // เริ่มเกมครั้งแรก
+        startNewGame();
+    </script>
+</body>
+</html>
