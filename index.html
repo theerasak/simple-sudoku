@@ -123,6 +123,14 @@
         <div id="sudoku-grid"></div>
 
         <div class="controls">
+            <label for="difficulty-select" style="display:flex; align-items:center; gap:8px;">
+                Difficulty:
+                <select id="difficulty-select" onchange="startNewGame()">
+                    <option value="Easy">Easy</option>
+                    <option value="Medium" selected>Medium</option>
+                    <option value="Hard">Hard</option>
+                </select>
+            </label>
             <button onclick="startNewGame()">New Game</button>
             <button class="secondary" onclick="checkSolution()">Check Result</button>
         </div>
@@ -162,8 +170,14 @@
             // คัดลอกไปเป็นกระดานที่จะเล่น
             currentBoard = solution.map(row => [...row]);
             
-            // สุ่มลบตัวเลขออก (Difficulty: Medium)
-            let attempts = 40; 
+            // สุ่มลบตัวเลขออกตามระดับความยาก
+            const difficulty = document.getElementById('difficulty-select')?.value || 'Medium';
+            let attempts;
+            switch (difficulty) {
+                case 'Easy': attempts = 30; break;
+                case 'Hard': attempts = 50; break;
+                default: attempts = 40; break;
+            }
             while (attempts > 0) {
                 let r = Math.floor(Math.random() * 9);
                 let c = Math.floor(Math.random() * 9);
